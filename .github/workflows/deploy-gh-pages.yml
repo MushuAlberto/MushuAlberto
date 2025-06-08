@@ -1,0 +1,50 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main # O la rama que uses como principal (master, develop, etc.)
+  workflow_dispatch: # Permite ejecutarlo manualmente desde la pestaña Actions
+
+permissions:
+  contents: write # Necesario para hacer push a la rama gh-pages
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' 
+
+      - name: Replace API Key placeholders in index.html
+        run: |
+          # Crea una copia temporal para evitar problemas con sed -i en algunos entornos
+          cp index.html index.tmp.html
+          
+          # Reemplaza los placeholders. Usa | como delimitador para sed por si las URLs tienen /
+          # Los nombres de los secrets deben coincidir con los que crearás en GitHub
+          sed -i "s|__API_KEY__|${{ secrets.GEMINI_API_KEY_GH }}|g" index.tmp.html
+          sed -i "s|__SUPABASE_URL__|${{ secrets.SUPABASE_URL_GH }}|g" index.tmp.html
+          sed -i "s|__SUPABASE_ANON_KEY__|${{ secrets.SUPABASE_ANON_KEY_GH }}|g" index.tmp.html
+          
+          # Reemplaza el original con el modificado
+          mv index.tmp.html index.html
+        env:
+          # Define las variables de entorno para el script, tomándolas de los secrets de GitHub
+          GEMINI_API_KEY_GH: ${{ secrets.GEMINI_API_KEY_GH }}
+          SUPABASE_URL_GH: ${{ secrets.SUPABASE_URL_GH }}
+          SUPABASE_ANON_KEY_GH: ${{ secrets.SUPABASE_ANON_KEY_GH }}
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./ # El directorio raíz de tu proyecto
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
+          commit_message: 'Deploy to GitHub Pages'
